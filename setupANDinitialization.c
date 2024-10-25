@@ -359,7 +359,8 @@ int main()
     // asking players to select easy or difficult modes
     printf("Please select difficulty level: insert 0 for easy and 1 for hard: ");
     scanf("%d", &difficulty);
-
+    // integrated game difficulty selection for player customization
+handleDificulty(&player1,&player2,difficulty);
     // declaring two char arrays to store the name of the players
     char name1[50];
     char name2[50];
@@ -421,31 +422,66 @@ int main()
 
     while (!gameOver)
     {
+        int x,y;
         if (player1.isTurn)
         {
-            takeTurn(&player1, &player2, difficulty); // player1 attacks player2
-        }
+            //Used validateMove function to check if player moves are valid before proceeding
+            if(validateMove(&player1,x,y){
+                takeTurn(&player1,&player2,difficulty);
+            }
+         
         else
         {
-            takeTurn(&player2, &player1, difficulty); // player2 attacks player1
+           switchTurns(&player1,&player2);
         }
+        }
+        //end conditions 
+       // if (player1.countSunk == 4) {
+       //     printf("%s wins!\n", player2.name);
+        //    gameOver = 1;
+       // } else if (player2.countSunk == 4) 
+        //    printf("%s wins!\n", player1.name);
+        //    gameOver = 1;
+        //
 
         // Check end condition (e.g., all ships sunk)
-        // For simplicity, we'll assume that if a player has sunk 4 ships, they win
-        if (player1.countSunk == 4)
-        {
-            printf("%s wins!\n", player2.name);
-            gameOver = 1;
+        if(isGameOver(&player1)){
+            displayWinner(&player2);
+            gameOver=1;
+        } else if(isGameOver(&player2)){
+            displayWinner(&player1);
+            gameOver=1;
         }
-        else if (player2.countSunk == 4)
-        {
-            printf("%s wins!\n", player1.name);
-            gameOver = 1;
-        }
+        
+        
 
         // Switch turns
         switchTurns(&player1, &player2);
     }
 
     return 0;
+}
+//game end logic
+int isGameOver(Player *player){
+return player ->countSunk==4; 
+}
+//display the winner mssg
+void displayWinner(Player *winner){
+    printf("congratulations! %s YOU WON!", winner->name);
+}
+//the overall correctness of the game (including losing turn when invalid moves)
+int validateMove(Player *attacker,int x,int y){
+    if(x<0 ||x>=10 || y<0 ||y>=10 || attacker->own.display[x][y]!='~'){
+printf("that's an invalid move! you lost your turn \n");
+        return 0; //invalid move
+    }
+return 1; //valid move
+}
+//ensuring it works under both easy and hard modes
+void handleDificulty(Player *p1, Player *p2, int mode){
+    if(mode==0){//easy
+printf("Easy mode on!\n");
+    }
+else if(mode==1){
+printf("hard mode on! \n");
 }
