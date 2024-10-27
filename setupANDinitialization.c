@@ -485,3 +485,201 @@ printf("Easy mode on!\n");
 else if(mode==1){
 printf("hard mode on! \n");
 }
+
+
+
+
+
+
+
+void fire(char coordinate[], Player *attacker, Player *opponent) {
+    int column = letterToNumber(coordinate[0]); //nermine function.
+    int row = coordinate[1] - '1'; 
+
+   //check if he is shooting on the grid 
+    if (row < 0 || row >= 10 || column < 0 || column >= 10) {
+        printf("Invalid coordinates!\n");
+        return;
+    }
+
+    // Check if ship is where he fired
+    if ((*opponent).own.hide[row][column] != '~') {
+        printf("Hit! You hit %s's ship at %s!\n", (*opponent).name, coordinate);
+        // Update grid 
+        (*opponent).own.display[row][column] = '*'; // hit
+        (*opponent).own.hide[row][column] = '*';    
+    } else {
+        printf("Miss! No ship at this location.\n");
+        (*opponent).own.display[row][column] = 'O'; //miss
+    }
+
+    //Print grid of opponent
+    printf("%s's grid after the attack:\n", (*attacker).name);
+    printGrid((*opponent).own.display);
+    //the grid here is actually changed not just an instance.
+}
+
+void radar_sweep(Player *attacker, Player *opponent, char coord[]) {
+    if ((*attacker).radarUses <= 0) {
+        printf("no radar left, your turn is skipped\n");
+        return;
+    }
+    
+    // Convert the coordinate 
+    int row = coord[1] - '1';         
+    int col = coord[0] - 'A';        
+    
+    // Check if the 2x2 area is in the grid
+    if (row < 0 || row > GRID_SIZE - 2 || col < 0 || col > GRID_SIZE - 2) {
+        printf("Invalid coordinates, Try again.\n");
+        return;
+    }
+    
+    // Check the area for ship
+    bool shipsfound = false;
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+
+            if ((*opponent).smoked[row + i][col + j]) {
+                continue;
+            }
+            char currentCell = (*opponent).own.hide[row + i][col + j];
+            if (currentCell == 'C' || currentCell == 'B' || currentCell == 'D' || currentCell == 'S') {
+                shipsfound = true;
+                break;   // If ship found, we stop 
+            }
+        }
+        if (shipsfound) break;
+    }
+    
+    // result
+    if (shipsfound) {
+        printf("Enemy ships found\n");
+    } else {
+        printf("No enemy ships found\n");
+    }
+    
+    // use on counter
+    (*attacker).radarUses -= 1;
+}
+void place_smoke_screen(Player *player, char coord[]) {
+   
+    int row = coord[1] - '1';         
+    int col = coord[0] - 'A';
+
+    
+    if (row < 0 || row > GRID_SIZE - 2 || col < 0 || col > GRID_SIZE - 2) {
+        printf("Invalid coordinates, Try again.\n");
+        return;
+    }
+    
+    // Check if smoke screens left
+    if ((*player).smokeUses <= 0) {
+        printf("no smoke screens left.turn skipped.\n");
+        return;
+    }
+    
+    // Make the 2by 2 grid true
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+            (*player).smoked[row + i][col + j] = true;
+        }
+    }
+    
+    // Increment smoke screen counter
+    (*player).smokeUses -= 1;
+    
+   
+        system("cls"); 
+    
+    
+    printf("Smoke screen placed successfully!\n");
+}
+void artillery(char coordinate[], Player *attacker, Player *opponent) {
+    int column = letterToNumber(coordinate[0]);
+    int row = coordinate[1] - '1';
+
+    // Check if the 2x2 area is within the grid bounds
+    if (row < 0 || row >= 9 || column < 0 || column >= 9) { 
+        printf("Invalid coordinates for artillery!\n");
+        return;
+    }
+
+    bool hit = false;
+
+    // Check each cell in the 2x2 area
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+            int targetRow = row + i;
+            int targetCol = column + j;
+
+            // Check if there's a ship part at this cell
+            if ((*opponent).own.hide[targetRow][targetCol] != '~') {
+                hit = true;
+                (*opponent).own.display[targetRow][targetCol] = '*'; // hit
+                (*opponent).own.hide[targetRow][targetCol] = '*';    // Update hidden grid
+            } else {
+                (*opponent).own.display[targetRow][targetCol] = 'O'; // miss
+            }
+        }
+    }
+
+ 
+    if (hit) {
+        printf("Artillery strike successful! Enemy ship(s) hit in the target area.\n");
+    } else {
+        printf("Artillery strike missed. No ships in the target area.\n");
+    }
+
+    // Show the opponent's grid after the attack
+    printf("%s's grid after the artillery strike:\n", (*attacker).name);
+    printGrid((*opponent).own.display);
+}
+void torpedo(char coordinate[], Player *attacker, Player *opponent, char direction) {
+    int column = letterToNumber(coordinate[0]);
+    int row = coordinate[1] - '1';
+
+  
+    if (row < 0 || row >= 10 || column < 0 || column >= 10) {
+        printf("Invalid coordinates for torpedo!\n");
+        return;
+    }
+
+    bool hit = false;
+
+    if (direction == 'H' || direction == 'h') { // horizontal 
+        for (int j = 0; j < 10; ++j) {
+            if ((*opponent).own.hide[row][j] != '~') {
+                hit = true;
+                (*opponent).own.display[row][j] = '*'; // hit
+                (*opponent).own.hide[row][j] = '*';   
+            } else {
+                (*opponent).own.display[row][j] = 'O'; // miss
+            }
+        }
+    } else if (direction == 'V' || direction == 'v') { // vertical 
+        for (int i = 0; i < 10; ++i) {
+            if ((*opponent).own.hide[i][column] != '~') {
+                hit = true;
+                (*opponent).own.display[i][column] = '*'; // hit
+                (*opponent).own.hide[i][column] = '*';   
+            } else {
+                (*opponent).own.display[i][column] = 'O'; // miss
+            }
+        }
+    } else {
+        printf("Invalid direction.\n");
+        return;
+    }
+
+    if (hit) {
+        printf("Torpedo hit.\n");
+    } else {
+        printf("Torpedo miss.\n");
+    }
+
+ 
+    printf("%s'grid after the torpedo strike:\n", (*attacker).name);
+    printGrid((*opponent).own.display);
+}
+
