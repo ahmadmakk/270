@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
+#define GRID_SIZE 10 
+#include <stdbool.h>
 /* display: to be attacked by the oppoenet player (~ or * or 0)
 hide: to keep record of where player's ships are (letter of the ship or ~)*/
 typedef struct grid
@@ -12,9 +13,14 @@ typedef struct grid
 
 typedef struct player
 {
+     bool smoked[GRID_SIZE][GRID_SIZE];
     char *name;
     int isTurn;
     int countSunk;
+    int radarUses;
+    int torpedoUses;
+    int smokeUses;
+    bool Artillery;
     Grid own;
     Ship ships[4];
 
