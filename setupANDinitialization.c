@@ -6,6 +6,9 @@
 #include <string.h>
 /* display: to be attacked by the oppoenet player (~ or * or 0)
 hide: to keep record of where player's ships are (letter of the ship or ~)*/
+int difficulty;
+
+
 typedef struct grid
 {
 char display[10][10];
@@ -26,9 +29,10 @@ char *name;
 int isTurn;
 int countSunk;
 int radarUses;
-int torpedoUses;
+
 int smokeUses;
 bool Artillery;
+bool Torpedo;
 Grid own;
 Ship ships[4];
 
@@ -170,173 +174,6 @@ p1->isTurn = 1;
 p2->isTurn = 0;
 }
 }
-
-
-
-void Radar(Player *attacker, Player *opponent, char coord[]) {
-if ((*attacker).radarUses <= 0) {
-printf("no radar left, your turn is skipped\n");
-return;
-}
-
-// Convert the coordinate 
-int row = coord[1] - '1';         
-int col = coord[0] - 'A';        
-
-// Check if the 2x2 area is in the grid
-if (row < 0 || row > GRID_SIZE - 2 || col < 0 || col > GRID_SIZE - 2) {
-printf("Invalid coordinates, Try again.\n");
-return;
-}
-
-// Check the area for ship
-bool shipsfound = false;
-for (int i = 0; i < 2; ++i) {
-for (int j = 0; j < 2; ++j) {
-
-if ((*opponent).smoked[row + i][col + j]) {
-continue;
-}
-char currentCell = (*opponent).own.hide[row + i][col + j];
-if (currentCell == 'C' || currentCell == 'B' || currentCell == 'D' || currentCell == 'S') {
-shipsfound = true;
-break;   // If ship found, we stop 
-}
-}
-if (shipsfound) break;
-}
-
-// result
-if (shipsfound) {
-printf("Enemy ships found\n");
-} else {
-printf("No enemy ships found\n");
-}
-
-// use on counter
-(*attacker).radarUses -= 1;
-}
-void Smoke(Player *player, char coord[]) {
-
-int row = coord[1] - '1';         
-int col = coord[0] - 'A';
-
-
-if (row < 0 || row > GRID_SIZE - 2 || col < 0 || col > GRID_SIZE - 2) {
-printf("Invalid coordinates, Try again.\n");
-return;
-}
-
-// Check if smoke screens left
-if ((*player).smokeUses <= 0) {
-printf("no smoke screens left.turn skipped.\n");
-return;
-}
-
-// Make the 2by 2 grid true
-for (int i = 0; i < 2; ++i) {
-for (int j = 0; j < 2; ++j) {
-(*player).smoked[row + i][col + j] = true;
-}
-}
-
-// Increment smoke screen counter
-(*player).smokeUses -= 1;
-
-
-system("cls"); 
-
-
-printf("Smoke screen placed successfully!\n");
-}
-void artilleryAttack(char coordinate[], Player *attacker, Player *opponent) {
-int column = letterToNumber(coordinate[0]);
-int row = coordinate[1] - '1';
-
-// Check if the 2x2 area is within the grid bounds
-if (row < 0 || row >= 9 || column < 0 || column >= 9) { 
-printf("Invalid coordinates for artillery!\n");
-return;
-}
-
-bool hit = false;
-
-// Check each cell in the 2x2 area
-for (int i = 0; i < 2; ++i) {
-for (int j = 0; j < 2; ++j) {
-int targetRow = row + i;
-int targetCol = column + j;
-
-// Check if there's a ship part at this cell
-if ((*opponent).own.hide[targetRow][targetCol] != '~') {
-hit = true;
-(*opponent).own.display[targetRow][targetCol] = '*'; // hit
-(*opponent).own.hide[targetRow][targetCol] = '*';    // Update hidden grid
-} else {
-(*opponent).own.display[targetRow][targetCol] = 'O'; // miss
-}
-}
-}
-
-
-if (hit) {
-printf("Artillery strike successful! Enemy ship(s) hit in the target area.\n");
-} else {
-printf("Artillery strike missed. No ships in the target area.\n");
-}
-
-// Show the opponent's grid after the attack
-printf("%s's grid after the artillery strike:\n", (*attacker).name);
-printGrid((*opponent).own.display);
-}
-void torpedoStrike(char coordinate[], Player *attacker, Player *opponent, char direction) {
-int column = letterToNumber(coordinate[0]);
-int row = coordinate[1] - '1';
-
-
-if (row < 0 || row >= 10 || column < 0 || column >= 10) {
-printf("Invalid coordinates for torpedo!\n");
-return;
-}
-
-bool hit = false;
-
-if (direction == 'H' || direction == 'h') { // horizontal 
-for (int j = 0; j < 10; ++j) {
-if ((*opponent).own.hide[row][j] != '~') {
-hit = true;
-(*opponent).own.display[row][j] = '*'; // hit
-(*opponent).own.hide[row][j] = '*';   
-} else {
-(*opponent).own.display[row][j] = 'O'; // miss
-}
-}
-} else if (direction == 'V' || direction == 'v') { // vertical 
-for (int i = 0; i < 10; ++i) {
-if ((*opponent).own.hide[i][column] != '~') {
-hit = true;
-(*opponent).own.display[i][column] = '*'; // hit
-(*opponent).own.hide[i][column] = '*';   
-} else {
-(*opponent).own.display[i][column] = 'O'; // miss
-}
-}
-} else {
-printf("Invalid direction.\n");
-return;
-}
-
-if (hit) {
-printf("Torpedo hit.\n");
-} else {
-printf("Torpedo miss.\n");
-}
-
-
-printf("%s'grid after the torpedo strike:\n", (*attacker).name);
-printGrid((*opponent).own.display);
-}
-
 int isShipSunk(Ship *ship)
 {
 return ship->hitCount == ship->cells;
@@ -344,7 +181,284 @@ return ship->hitCount == ship->cells;
 }
 
 
-void fire(Player *attacker, Player *defender, int difficulty)
+void Radar(Player *attacker, Player *opponent) {
+    // Disable Torpedo and Artillery abilities
+    attacker->Torpedo = false;
+    attacker->Artillery = false;
+
+    // Check if there are any radar scans left
+    if (attacker->radarUses <= 0) {
+        printf("No radar scans left. Your turn is skipped.\n");
+        return;
+    }
+
+    // Prompt for coordinates for radar scan
+    char coord[4];
+    printf("%s, enter coordinates for radar scan (top-left of 2x2 area): ", attacker->name);
+    scanf("%s", coord);
+
+    int topLeftCol = letterToNumber(coord[0]);
+    int topLeftRow = (coord[1] == '1' && coord[2] == '0') ? 9 : coord[1] - '1';
+
+    // Validate if the 2x2 area is within grid bounds
+    if (!validateCoordinates(topLeftRow, topLeftCol) ||
+        !validateCoordinates(topLeftRow + 1, topLeftCol + 1)) {
+        printf("Invalid radar scan area! You lose your turn.\n");
+        return;
+    }
+
+    // Check the 2x2 area for any ships
+    bool shipsFound = false;
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+            // Skip cells covered by smoke screens
+            if (opponent->smoked[topLeftRow + i][topLeftCol + j]) {
+                continue;
+            }
+
+            char currentCell = opponent->own.hide[topLeftRow + i][topLeftCol + j];
+            if (currentCell == 'C' || currentCell == 'B' || currentCell == 'D' || currentCell == 'S') {
+                shipsFound = true;
+                break;   // Stop checking once a ship is found
+            }
+        }
+        if (shipsFound) break;
+    }
+
+    // Display result
+    if (shipsFound) {
+        printf("Enemy ships found in the area!\n");
+    } else {
+        printf("No enemy ships found in the area.\n");
+    }
+
+    // Decrement radar use count
+    attacker->radarUses--;
+}
+void Smoke(Player *attacker ) {
+    // Disable artillery when using a smoke screen
+    attacker->Artillery = false;
+    attacker->Torpedo = false;
+    // Prompt for coordinates
+    char coord[4];
+    printf("%s, enter coordinates for smoke screen (top-left of 2x2 area): ", attacker->name);
+    scanf("%s", coord);
+
+    int topLeftCol = letterToNumber(coord[0]);
+    int topLeftRow = (coord[1] == '1' && coord[2] == '0') ? 9 : coord[1] - '1';
+
+    // Validate if the 2x2 area is within grid bounds
+    if (!validateCoordinates(topLeftRow, topLeftCol) ||
+        !validateCoordinates(topLeftRow + 1, topLeftCol + 1)) {
+        printf("Invalid smoke screen area! You lose your turn.\n");
+        return;
+    }
+
+    // Check if smoke screens are available
+    if (attacker->smokeUses <= 0) {
+        printf("No smoke screens left. Turn skipped.\n");
+        return;
+    }
+
+    // Place smoke screen in the 2x2 area
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+            attacker->smoked[topLeftRow + i][topLeftCol + j] = true;
+        }
+    }
+
+    // Decrement smoke screen count after successful placement
+    attacker->smokeUses--;
+
+    // Clear screen for next player's turn (optional, mainly for console-based games)
+    system("cls");
+
+    printf("Smoke screen placed successfully!\n");
+}
+void artilleryAttack(Player *attacker, Player *opponent) {
+
+char coord[4];
+printf("%s, enter coordinates for artillery strike (top-left of 2x2 area): ", attacker->name);
+scanf("%s", coord);
+
+int topLeftCol = letterToNumber(coord[0]);
+int topLeftRow = (coord[1] == '1' && coord[2] == '0') ? 9 : coord[1] - '1';
+    // Validate if the 2x2 area is within grid bounds
+if (!validateCoordinates(topLeftRow, topLeftCol) ||
+        !validateCoordinates(topLeftRow + 1, topLeftCol + 1)) {
+        printf("Invalid artillery target area! You lose your turn.\n");
+        return;
+    }
+
+
+
+
+bool hit = false;
+
+// Check each cell in the 2x2 area
+ for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+            int row = topLeftRow + i;
+            int col = topLeftCol + j;
+            char cellInHide = opponent->own.hide[row][col];
+            char cellInDisplay = opponent->own.display[row][col];
+            
+            if (cellInHide != '~' ) { // It's a ship
+                opponent->own.display[row][col] = '*';
+                hit = true;  // Mark that a hit occurred
+                for (int i = 0; i < 4; i++)
+                    {
+                    if (cellInHide == opponent->ships[i].name[0]) // Check if the hit matches a ship's initial
+                    {
+                    opponent->ships[i].hitCount++; // Increment hit count for the ship
+
+                    if (isShipSunk(&opponent->ships[i])) // Check if the ship is sunk
+                    {
+                    printf("You sunk a %s!\n", opponent->ships[i].name); // Print which ship was sunk
+                    }
+                    attacker->countSunk++;
+                    attacker->Artillery=true;
+                    attacker->smokeUses++;
+                    if(attacker->countSunk==3){
+                        attacker->Torpedo= true;
+                    }
+                    break; // Stop checking once we find the correct ship
+                    }
+                    }
+                } else { // Water cell
+                if (difficulty == 0) { // Easy mode
+                    opponent->own.display[row][col] = 'o';
+                }
+            }
+        }
+    }
+
+
+if (hit) {
+        printf("Hit!\n");
+    } else {
+        printf("Miss!\n");
+        attacker->Artillery=false;
+        attacker->Torpedo= false;
+    }
+
+// Show the opponent's grid after the attack
+    printf("%s's grid after the artillery strike:\n", (*attacker).name);
+    printGrid((*opponent).own.display);
+}
+void torpedoStrike(Player *attacker, Player *opponent) { 
+    char coord[4];
+    char direction;
+    
+    // Prompt the user to enter the coordinates and direction
+    printf("%s, enter coordinates for torpedo strike (e.g., B or 3): ", attacker->name);
+    scanf("%s", coord);
+    
+    printf("Enter direction (H for row, V for column): ");
+    scanf(" %c", &direction);
+
+    int column = letterToNumber(coord[0]);
+    int row = coord[1] - '1';
+
+    // Validate the coordinates based on the chosen direction
+    if ((direction == 'H' || direction == 'h') && (row < 0 || row >= 10)) {
+        printf("Invalid row for torpedo!\n");
+        return;
+    }
+    if ((direction == 'V' || direction == 'v') && (column < 0 || column >= 10)) {
+        printf("Invalid column for torpedo!\n");
+        return;
+    }
+
+    bool hit = false;
+
+    // Apply torpedo strike in the specified direction
+    if (direction == 'H' || direction == 'h') { // Horizontal (row) attack
+        for (int j = 0; j < 10; ++j) {
+            char cell = opponent->own.hide[row][j];
+            if (cell != '~' && cell != '*') { // Ship detected and not hit before
+                hit = true;
+                opponent->own.display[row][j] = '*';
+                opponent->own.hide[row][j] = '*';
+
+                // Increment the hit count for the specific ship
+                for (int i = 0; i < 4; i++) {
+                    if (cell == opponent->ships[i].name[0]) { // Match ship by initial
+                        opponent->ships[i].hitCount++;
+
+                        // Check if the ship is sunk
+                        if (isShipSunk(&opponent->ships[i])) {
+                            printf("You sunk a %s!\n", opponent->ships[i].name);
+                            attacker->countSunk++;
+                            
+                            // Grant abilities based on ship sink count
+                            attacker->Artillery = true;
+                            attacker->smokeUses++;
+                            if (attacker->countSunk == 3) {
+                                attacker->Torpedo = true;
+                            }
+                        }
+                        break;
+                    }
+                }
+            } else if (cell == '~') {
+                opponent->own.display[row][j] = 'O'; // Mark a miss
+            }
+        }
+    } else if (direction == 'V' || direction == 'v') { // Vertical (column) attack
+        for (int i = 0; i < 10; ++i) {
+            char cell = opponent->own.hide[i][column];
+            if (cell != '~' && cell != '*') { // Ship detected and not hit before
+                hit = true;
+                opponent->own.display[i][column] = '*';
+                opponent->own.hide[i][column] = '*';
+
+                // Increment the hit count for the specific ship
+                for (int j = 0; j < 4; j++) {
+                    if (cell == opponent->ships[j].name[0]) { // Match ship by initial
+                        opponent->ships[j].hitCount++;
+
+                        // Check if the ship is sunk
+                        if (isShipSunk(&opponent->ships[j])) {
+                            printf("You sunk a %s!\n", opponent->ships[j].name);
+                            attacker->countSunk++;
+                            
+                            // Grant abilities based on ship sink count
+                            attacker->Artillery = true;
+                            attacker->smokeUses++;
+                            if (attacker->countSunk == 3) {
+                                attacker->Torpedo = true;
+                            }
+                        }
+                        break;
+                    }
+                }
+            } else if (cell == '~') {
+                opponent->own.display[i][column] = 'O'; // Mark a miss
+            }
+        }
+    } else {
+        printf("Invalid direction.\n");
+        return;
+    }
+
+    // Print result based on whether there was a hit
+    if (hit) {
+        printf("Torpedo hit!\n");
+    } else {
+        attacker->Artillery = false;
+        printf("Torpedo miss.\n");
+    }
+
+    // Display the opponent's grid after the attack
+    printf("%s's grid after the torpedo strike:\n", attacker->name);
+    printGrid(opponent->own.display);
+}
+
+
+
+
+void fire(Player *attacker, Player *defender)
 {
 char coord[4];
 
@@ -389,15 +503,21 @@ if (isShipSunk(&defender->ships[i])) // Check if the ship is sunk
 printf("You sunk a %s!\n", defender->ships[i].name); // Print which ship was sunk
 }
 attacker->countSunk++;
+attacker->Artillery=true;
+attacker->smokeUses++;
+if(attacker->countSunk==3){
+    attacker->Torpedo= true;
+}
 break; // Stop checking once we find the correct ship
 }
 }
 }
 // else the cell was water in the hide grid and was not a ship
 else
-{
+{attacker->Artillery=false;
+ attacker->Torpedo= false;
 printf("Miss!\n");
-if (!difficulty) // difficulty is easy
+if (difficulty==0) // difficulty is easy
 {
 defender->own.display[row][column] = 'o'; // mark miss on the display grid only in easy mode
 }
@@ -428,7 +548,7 @@ scanf("%s", move);
 // we examine all the movements possibilities
 if (!strcmp(move, "Fire"))
 {
-fire(attacker, defender, difficulty);
+fire(attacker, defender);
         printf("Radar Sweep selected!\n");
         printf("Radar Sweep selected!\n");//?
 }
@@ -439,7 +559,7 @@ printf("Radar Sweep selected!\n");
 }
 else if (!strcmp(move, "Smoke"))
 {
-Smoke(attacker, defender);
+Smoke(attacker);
 printf("Smoke Screen selected!\n");
 }
 else if (!strcmp(move, "Artillery"))
@@ -514,14 +634,14 @@ return 0; //invalid move
 return 1; //valid move
 }
 //ensuring it works under both easy and hard modes
-void handleDificulty(Player *p1, Player *p2, int mode){
-if(mode==0){//easy
-printf("Easy mode on!\n");
-}
-else if(mode==1){
-printf("hard mode on! \n");
-}
-}
+// void handleDificulty(Player *p1, Player *p2, int mode){
+// if(mode==0){//easy
+// printf("Easy mode on!\n");
+// }
+// else if(mode==1){
+// printf("hard mode on! \n");
+// }
+//}
 
 
 
@@ -583,7 +703,10 @@ Ship shipss[] = {{"carrier", 5, 0}, {"battleship", 4, 0}, {"destroyer", 3, 0}, {
 // declaring the two players
 Player player1;
 Player player2;
-
+player1.radarUses=3;
+player1.smokeUses=0;
+player2.radarUses=3;
+player2.smokeUses=0;
 // declaring the two grids
 Grid grid1;
 Grid grid2;
@@ -609,19 +732,19 @@ grid2.hide[i][j] = '~';
 }
 }
 
-// defining difficulty levels
-enum difficultyLevels
-{
-easy, // 0
-hard  // 1
-};
-int difficulty;
+// // defining difficulty levels
+// enum difficultyLevels
+// {
+// easy, // 0
+// hard  // 1
+// };
+// int difficulty;
 
 // asking players to select easy or difficult modes
 printf("Please select difficulty level: insert 0 for easy and 1 for hard: ");
 scanf("%d", &difficulty);
 // integrated game difficulty selection for player customization
-handleDificulty(&player1,&player2,difficulty);
+///////handleDificulty(&player1,&player2,difficulty);
 // declaring two char arrays to store the name of the players
 char name1[50];
 char name2[50];
