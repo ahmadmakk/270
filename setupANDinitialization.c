@@ -180,7 +180,7 @@ void takeTurn(Player *attacker, Player *defender, int difficulty)
     if (!strcmp(move, "Fire"))
     {
         fire(attacker, defender, difficulty);
-        printf("Radar Sweep selected!\n");
+        printf("Radar Sweep selected!\n");//?
     }
     else if (!strcmp(move, "Radar"))
     {
@@ -286,6 +286,7 @@ int validateCoordinates(int row, int column)
 int isShipSunk(Ship *ship)
 {
     return ship->hitCount == ship->cells;
+    
 }
 
 void positionShips(Player player, Ship *shipss)
@@ -498,32 +499,32 @@ printf("hard mode on! \n");
 
 
 
-void fire(char coordinate[], Player *attacker, Player *opponent) {
-    int column = letterToNumber(coordinate[0]); //nermine function.
-    int row = coordinate[1] - '1'; 
+//void fire(char coordinate[], Player *attacker, Player *opponent) {
+//   int column = letterToNumber(coordinate[0]); //nermine function.
+//    int row = coordinate[1] - '1'; 
 
    //check if he is shooting on the grid 
-    if (row < 0 || row >= 10 || column < 0 || column >= 10) {
-        printf("Invalid coordinates!\n");
-        return;
-    }
+ //   if (row < 0 || row >= 10 || column < 0 || column >= 10) {
+   //     printf("Invalid coordinates!\n");
+   //     return;
+  //  }
 
     // Check if ship is where he fired
-    if ((*opponent).own.hide[row][column] != '~') {
-        printf("Hit! You hit %s's ship at %s!\n", (*opponent).name, coordinate);
+  //  if ((*opponent).own.hide[row][column] != '~') {
+  //      printf("Hit! You hit %s's ship at %s!\n", (*opponent).name, coordinate);
         // Update grid 
-        (*opponent).own.display[row][column] = '*'; // hit
-        (*opponent).own.hide[row][column] = '*';    
-    } else {
-        printf("Miss! No ship at this location.\n");
-        (*opponent).own.display[row][column] = 'O'; //miss
-    }
+   //     (*opponent).own.display[row][column] = '*'; // hit
+    //    (*opponent).own.hide[row][column] = '*';    
+  //  } else {
+    //    printf("Miss! No ship at this location.\n");
+   //     (*opponent).own.display[row][column] = 'O'; //miss
+   // }
 
     //Print grid of opponent
-    printf("%s's grid after the attack:\n", (*attacker).name);
-    printGrid((*opponent).own.display);
+   // printf("%s's grid after the attack:\n", (*attacker).name);
+  //  printGrid((*opponent).own.display);
     //the grid here is actually changed not just an instance.
-}
+//}
 
 void radar_sweep(Player *attacker, Player *opponent, char coord[]) {
     if ((*attacker).radarUses <= 0) {
