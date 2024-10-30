@@ -1,3 +1,5 @@
+//This project was done by: Nermine Chhayta, Nour Fneish, Ahmad Makkouk and Hayat Bounite
+//Team: World war III
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -768,11 +770,6 @@ int main()
     player1.own = grid1;
     player2.own = grid2;
 
-    player1.radarUses = 0;
-    player2.radarUses = 0;
-
-    player1.smokeUses = 0;
-    player2.smokeUses = 0;
 
     for (int i = 0; i < 4; i++)
     {
