@@ -347,11 +347,8 @@ bool artilleryAttack(Player *attacker, Player *opponent, int topLeftRow, int top
                 }
             }
             else
-            { // Water cell
-                if (difficulty == 0)
-                { // Easy mode
-                    opponent->own.display[row][col] = 'o';
-                }
+            { 
+                    opponent->own.display[row][col] = 'O';
             }
         }
     }
@@ -535,7 +532,7 @@ bool fire(Player *attacker, Player *defender, int row, int column)
     else
     {
         printf("Miss!\n");
-        defender->own.display[row][column] = 'o'; // mark miss on the display grid only in easy mode
+        defender->own.display[row][column] = 'O'; // mark miss on the display grid only in easy mode
     }
 
     if (sunkshipprev == attacker->countSunk)
@@ -554,11 +551,11 @@ bool takeTurn(Player *attacker, Player *defender, char move[9], int row, int col
     // we examine all the movements possibilities
     if (!strcmp("Fire", move))
     {
+        printf("Fire selected!\n");
         hit = fire(attacker, defender, row, col);
     }
     else if (!strcmp("Radar", move))
     {
-
         printf("Radar Sweep selected!\n");
         hit = Radar(attacker, defender, row, col);
     }
@@ -738,11 +735,11 @@ void extract_row_col(char coord[3], int *row, int *col)
 typedef struct
 {
 
-    Player *base;
+    Player base;
 
     bool haunting;          // if 1 then we need to haunt for targets if 0 then we have targets
     int last_move;          // if 1, the last hit was fire, 2 for radar, 3 for artillery
-    char hit_stack[100][3]; // Stack of coordinates to target next
+    int hit_stack[100][2]; // Stack of coordinates to target next
     int hit_stack_size;     // Size of the hit stack
     int ConsecutiveMisses;  /*tracks consecutive misses to see if the bot is struggling
                               should be 0-ed in the main if the bot hits */
@@ -778,18 +775,18 @@ bool should_use_radar(MediumBot *MediumBot, char PlayerGrid[10][10])
     return 0; // Avoid radar in the early game (if unkown cells are many  >50)
 }
 
-void medium_guess(char PlayerGrid[10][10], char *guess)
+void medium_guess(char PlayerGrid[10][10], int* row, int* col)
 {
 
-    for (int row = 0; row < 10; row++)
+    for (int r = 0; r < 10; r++)
     {
-        for (int col = 0; col < 10; col++)
+        for (int c= 0; c < 10; c++)
         {
-            if ((row + col) % 2 == 0 && PlayerGrid[row][col] == '~')
+            if ((r + c) % 2 == 0 && PlayerGrid[r][c] == '~')
             {
-
-                guess[0] = 'A' + col;              // Convert column to letter
-                sprintf(guess + 1, "%d", row + 1); // Convert row to number
+ 
+                 *col= c;             
+                 *row = r;
                 return;
             }
         }
@@ -797,25 +794,27 @@ void medium_guess(char PlayerGrid[10][10], char *guess)
 }
 
 // used for radar and artillery
-void find_best_2by2_area(char PlayerGrid[10][10], char *target)
+void find_best_2by2_area(char PlayerGrid[10][10],  int* row, int* col)
 {
 
     int max_water = -1;
-    char best_area[3] = "";
+    int best_row = -1;
+    int best_col = -1;
 
-    for (int row = 0; row < 9; row++)
+
+    for (int r = 0; r < 9; r++)
     {
-        for (int col = 0; col < 9; col++)
+        for (int c = 0; c < 9; c++)
         {
 
             int water = 0;
 
-            for (int r = row; r < row + 2; r++)
+            for (int r1 = r; r1 < r + 2; r1++)
             {
-                for (int c = col; c < col + 2; c++)
+                for (int c1 = c; c1 < c + 2; c1++)
                 {
 
-                    if (PlayerGrid[r][c] == '~')
+                    if (PlayerGrid[r1][c1] == '~')
                     {
                         water += 1;
                     }
@@ -824,9 +823,11 @@ void find_best_2by2_area(char PlayerGrid[10][10], char *target)
                 if (water > max_water)
                 {
                     max_water = water;
-                    best_area[0] = 'A' + col;
-                    sprintf(best_area + 1, "%d", row + 1);
+                    best_col = c;
+                    best_row = r;
                 }
+
+
                 if (max_water == 4)
                     break; // we can't reach more than 4 per 2x2 grid
             }
@@ -834,19 +835,25 @@ void find_best_2by2_area(char PlayerGrid[10][10], char *target)
                 break;
         }
 
-        strcpy(target, best_area);
+              if (max_water == 4)
+                break;
     }
+
+
+    *row = best_row;
+    *col = best_col;
 }
 
-void addto_hit_stack(MediumBot *MediumBot, int candidate[2], char PlayerGrid[10][10])
-{
-    int row = candidate[0];
-    int col = candidate[1];
-    if (validateCoordinates(row, col) && PlayerGrid[row][col] == '~')
-    {
-        sprintf(MediumBot->hit_stack[MediumBot->hit_stack_size++], "%c%d", 'A' + col, row + 1);
+void addto_hit_stack(MediumBot *MediumBot, int row, int col, char PlayerGrid[10][10]) {
+  
+    if (validateCoordinates(row, col) && PlayerGrid[row][col] == '~') {
+        MediumBot->hit_stack[MediumBot->hit_stack_size][0] = row;
+        MediumBot->hit_stack[MediumBot->hit_stack_size][1] = col;
+        MediumBot->hit_stack_size++;
     }
+
 }
+
 
 void check_around_hit(MediumBot *MediumBot, char PlayerGrid[10][10], int row, int col)
 {
@@ -869,39 +876,40 @@ void check_around_hit(MediumBot *MediumBot, char PlayerGrid[10][10], int row, in
     // no orientation
     if (MediumBot->orientation == 0)
     {
-        addto_hit_stack(MediumBot, down_Up_left_right[0], PlayerGrid);
-        addto_hit_stack(MediumBot, down_Up_left_right[1], PlayerGrid);
-        addto_hit_stack(MediumBot, down_Up_left_right[2], PlayerGrid);
-        addto_hit_stack(MediumBot, down_Up_left_right[3], PlayerGrid);
+        addto_hit_stack(MediumBot,  row+1, col, PlayerGrid);
+        addto_hit_stack(MediumBot, row-1, col, PlayerGrid);
+        addto_hit_stack(MediumBot, row, col-1, PlayerGrid);
+        addto_hit_stack(MediumBot, row, col+1, PlayerGrid);
     }
     // vertical orientation
     if (MediumBot->orientation == 1)
     {
         if (validateCoordinates(row + 1, col) && PlayerGrid[row + 1][col] == '*')
-            addto_hit_stack(MediumBot, down_Up_left_right[1], PlayerGrid);
+            addto_hit_stack(MediumBot, row-1, col, PlayerGrid);
         else
-            addto_hit_stack(MediumBot, down_Up_left_right[0], PlayerGrid);
+            addto_hit_stack(MediumBot, row+1, col,  PlayerGrid);
     }
     // horizontal orienatation
     if (MediumBot->orientation == 2)
     {
         if (validateCoordinates(row, col + 1) && PlayerGrid[row][col + 1] == '*')
-            addto_hit_stack(MediumBot, down_Up_left_right[2], PlayerGrid);
+            addto_hit_stack(MediumBot, row, col-1, PlayerGrid);
         else
-            addto_hit_stack(MediumBot, down_Up_left_right[3], PlayerGrid);
+            addto_hit_stack(MediumBot, row, col+1, PlayerGrid);
     }
 }
 
-void generate_medium_bot_move(MediumBot *MediumBot, char PlayerGrid[10][10], char move[9], char coord[3])
+void generate_medium_bot_move(MediumBot *MediumBot, char PlayerGrid[10][10], char move[9], int* row, int* col)
 {
 
     if (MediumBot->hit_stack_size == 0)
         MediumBot->haunting = 1;
     // if the medium bot is not haunting
 
-    if (MediumBot->base->Artillery)
+    if (MediumBot->base.Artillery)
+
     {
-        find_best_2by2_area(PlayerGrid, coord);
+        find_best_2by2_area(PlayerGrid, row, col);
         strcpy(move, "Artillery");
         MediumBot->last_move = 3;
     }
@@ -909,20 +917,21 @@ void generate_medium_bot_move(MediumBot *MediumBot, char PlayerGrid[10][10], cha
     else if (!MediumBot->haunting)
     {
         // we set the move to be fire
-        strcpy(move, "Fire ");
+        strcpy(move, "Fire");
         // we concatentate to the move the coordinates found last in the hit stack
         // we decrement the hit stack size
-        strcpy(coord, MediumBot->hit_stack[--(MediumBot->hit_stack_size)]);
-        MediumBot->last_move = 1;
+        --MediumBot->hit_stack_size;
+        *row = MediumBot-> hit_stack[MediumBot->hit_stack_size][0];
+        *col =  MediumBot-> hit_stack[MediumBot->hit_stack_size][1];
     }
 
     // else if we are haunting for places to target
     // and we can still use radar and it is a good choice to make use of it in this turn
-    else if (MediumBot->base->radarUses > 0 && should_use_radar(MediumBot, PlayerGrid))
+    else if (MediumBot->base.radarUses > 0 && should_use_radar(MediumBot, PlayerGrid))
     {
 
         // finds the best coordiates to tagret by radar and stores it in radar target
-        find_best_2by2_area(PlayerGrid, coord);
+        find_best_2by2_area(PlayerGrid, row, col);
         // we decrement the number of radar sweeps we can still use
         //  move  = Radar + radar target
         strcpy(move, "Radar");
@@ -932,8 +941,7 @@ void generate_medium_bot_move(MediumBot *MediumBot, char PlayerGrid[10][10], cha
     else
     {
         // we'll have to make a guess but not a completely random one
-
-        medium_guess(PlayerGrid, coord);
+        medium_guess(PlayerGrid, row, col);
         strcpy(move, "Fire");
         MediumBot->last_move = 1;
     }
@@ -944,22 +952,11 @@ void generate_medium_bot_move(MediumBot *MediumBot, char PlayerGrid[10][10], cha
 // radar returns "true" meaning Enemy ships found in the area so we store them in the stack
 // currently radar returns void so we should make it return bool for that
 // artilley hits
-void update_bot_state_after_hit(MediumBot *MediumBot, const char *hit_coord, char PlayerGrid[10][10])
+void update_bot_state_after_hit(MediumBot *MediumBot,int row, int col, char PlayerGrid[10][10])
 {
 
     MediumBot->haunting = 0;
-
-    int col = letterToNumber(hit_coord[0]); // Extract column
-
-    int row;
-    if (hit_coord[1] == '1' && hit_coord[2] == '0')
-    {
-        row = 9; // Since the grid is zero-indexed, row 10 becomes 9
-    }
-    else
-    {
-        row = hit_coord[1] - 1; // For single-digit rows
-    }
+    
 
     // if last move was fire we check adjacent cells depending on orientation
     if (MediumBot->last_move = 1)
@@ -975,7 +972,7 @@ void update_bot_state_after_hit(MediumBot *MediumBot, const char *hit_coord, cha
 
         for (int i = 0; i < 4; i++)
         {
-            addto_hit_stack(MediumBot, candidates[i], PlayerGrid);
+            addto_hit_stack(MediumBot, row, col, PlayerGrid);
         }
     }
 
@@ -1002,9 +999,27 @@ void update_bot_state_after_hit(MediumBot *MediumBot, const char *hit_coord, cha
 
 }
 
+
+void print2D(int array[100][2])
+{
+
+    for (int i = 0; i < 100; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            printf("%d%d", array[i][j]);
+        }
+         printf("\n");
+    }
+
+}
+
+
 int main()
 {
     Ship shipss[] = {{"carrier", 5, 0}, {"battleship", 4, 0}, {"destroyer", 3, 0}, {"submarine", 2, 0}};
+
+
 
     char name[50];
     printf("Please insert your name: ");
@@ -1022,22 +1037,28 @@ int main()
     Grid PlayerGrid;
     player.own = PlayerGrid;
 
-    printf("%S welcome to World War III \"Battleship!\"", player.name);
+
+
+    printf("%s welcome to World War III \"Battleship!\"\n", player.name);
+
+
+
 
     // asking players to select the bot modes
     printf("Please select difficulty level of the bot: insert 0 for easy and 1 for medium and 2 for hard: ");
     scanf("%d", &difficulty);
 
-    Player *bot;
 
+    Player *  bot;
     MediumBot medium;
+
 
     if (difficulty == 0)
     {
     }
     else if (difficulty == 1)
     {
-        bot = (Player *)&medium;
+        bot = (Player *) &medium;
         medium.ConsecutiveMisses = 0;
         medium.orientation = 0;
         medium.hit_stack_size = 0;
@@ -1081,16 +1102,24 @@ int main()
   //  system("cls");
 
     printf("The bot is palcing its ships...\n");
-    sleep(5);
+    //sleep(5);
 
+    if (difficulty ==0 || difficulty ==1){
     placeBotShipsRandomly(bot, shipss);
+    }
+    else {
+        // call hayat's function of smart placement of ships 
+    }
 
     printf("%s are you ready for the battle?\nLet's go!\n", player.name);
 
     int gameOver = 0;
 
+
+
     while (!gameOver)
     {
+       
         char move[9];
         char coord[4];
         int row;
@@ -1099,13 +1128,14 @@ int main()
 
         if (player.isTurn)
         {
+       
             // Display updated opponent(defender) grid before the turn
             printf("Updated grid for bot\n");
             printGrid(bot->own.display);
             // commanding the attacker to choose their move
             printf("%s, choose your move Fire/Radar/Smoke/Artillery/Torpedo: ", player.name);
             scanf("%s", move);
-            scanf("%s", coord);
+            
 
             if (!strcmp(move, "Torpedo"))
             {
@@ -1141,6 +1171,7 @@ int main()
                     break;
                 }
             }
+
             hit = takeTurn(&player, bot, move, row, col); // player attacks bot
         }
         else
@@ -1150,35 +1181,39 @@ int main()
             printf("Updated grid for %s:\n", player.name);
             printGrid(player.own.display);
 
-            int shipsunkprev = player.countSunk;
+            int shipsunkprev = bot->countSunk;
             if (difficulty == 0)
             {
+
             }
             else if (difficulty == 1)
             {
                
-                generate_medium_bot_move(&medium, player.own.display, move, coord);
-                 printf("bot made a move\n");
+                generate_medium_bot_move(&medium, player.own.display, move, &row, &col);
+                 printf("bot made a move at %c%d\n", 'A'+col ,row+1 );
             }
 
             else
             {
+
             }
 
-            extract_row_col(coord, &row, &col);
             hit = takeTurn(bot, &player, move, row, col);
 
             if (difficulty == 0)
             {
+
+
             }
             else if (difficulty == 1)
             {
                 if (hit)
                 {
-                    if (shipsunkprev < player.countSunk)
-                        medium.orientation = 0;
+                    if (shipsunkprev < bot->countSunk)
+                    medium.orientation = 0;
                     medium.ConsecutiveMisses = 0;
-                    update_bot_state_after_hit(&medium, coord, player.own.display);
+                    if(shipsunkprev == bot->countSunk)
+                    update_bot_state_after_hit(&medium, row, col, player.own.display);
                 }
                 else
                 {
@@ -1187,6 +1222,9 @@ int main()
             }
             else
             {
+
+
+
             }
         }
 
@@ -1194,15 +1232,17 @@ int main()
         // For simplicity, we'll assume that if a player has sunk 4 ships, they win
         if (player.countSunk == 4)
         {
-            printf("%s", "bot wins!");
+            printf("%s wins!\n", player.name);
             gameOver = 1;
         }
         else if (bot->countSunk == 4)
         {
-            printf("%s wins!\n", player.name);
+             printf("%s", "bot wins!");
             gameOver = 1;
         }
         // Switch turns
+
+
         switchTurns(&player, bot);
     }
 
