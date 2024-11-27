@@ -46,7 +46,7 @@ char* generate_easy_bot_move(EasyBot* EasyBot, Grid PlayerGrid) {
 }
 // used inside the fire function when we hit .
 void update_bot_when_hit(EasyBot* EasyBot, Grid PlayerGrid, char* move) {
-   void update_bot_when_hit(EasyBot* EasyBot, Grid PlayerGrid, char* move) {
+
     int col = move[0] - 'A';
     int row = atoi(move + 1) - 1;
 
