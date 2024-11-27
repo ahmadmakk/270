@@ -46,12 +46,45 @@ char* generate_easy_bot_move(EasyBot* EasyBot, Grid PlayerGrid) {
 }
 // used inside the fire function when we hit .
 void update_bot_when_hit(EasyBot* EasyBot, Grid PlayerGrid, char* move) {
-    // Check if a ship was sunk
-    if (EasyBot->sunk == EasyBot->base->countSunk) {
-        int col = move[0] - 'A';
-        int row = atoi(move + 1) - 1;
+   void update_bot_when_hit(EasyBot* EasyBot, Grid PlayerGrid, char* move) {
+    int col = move[0] - 'A';
+    int row = atoi(move + 1) - 1;
 
-        // Check adjacent tiles and add valid targets
+    // Check if there's already alignment of hits
+    bool isAlignedHorizontally = false;
+    bool isAlignedVertically = false;
+
+    // Check for existing hits and determine alignment
+    for (int i = 0; i < 4; i++) {
+        if (strlen(EasyBot->tohit[i]) > 0) {
+            int hitCol = EasyBot->tohit[i][0] - 'A';
+            int hitRow = atoi(EasyBot->tohit[i] + 1) - 1;
+
+            if (hitRow == row) {
+                isAlignedHorizontally = true;
+            } else if (hitCol == col) {
+                isAlignedVertically = true;
+            }
+        }
+    }
+
+    // Add aligned moves based on direction
+    if (isAlignedHorizontally) {
+        if (col > 0 && PlayerGrid.display[row][col - 1] == '~') { // Continue left
+            sprintf(EasyBot->tohit[0], "%c%d", 'A' + col - 1, row + 1);
+        }
+        if (col < GRID_SIZE - 1 && PlayerGrid.display[row][col + 1] == '~') { // Continue right
+            sprintf(EasyBot->tohit[1], "%c%d", 'A' + col + 1, row + 1);
+        }
+    } else if (isAlignedVertically) {
+        if (row > 0 && PlayerGrid.display[row - 1][col] == '~') { // Continue up
+            sprintf(EasyBot->tohit[2], "%c%d", 'A' + col, row);
+        }
+        if (row < GRID_SIZE - 1 && PlayerGrid.display[row + 1][col] == '~') { // Continue down
+            sprintf(EasyBot->tohit[3], "%c%d", 'A' + col, row + 2);
+        }
+    } else {
+        // No alignment yet; add all adjacent tiles as possible targets
         if (row > 0 && PlayerGrid.display[row - 1][col] == '~') { // Above
             sprintf(EasyBot->tohit[0], "%c%d", 'A' + col, row);
         }
@@ -64,17 +97,26 @@ void update_bot_when_hit(EasyBot* EasyBot, Grid PlayerGrid, char* move) {
         if (col < GRID_SIZE - 1 && PlayerGrid.display[row][col + 1] == '~') { // Right
             sprintf(EasyBot->tohit[3], "%c%d", 'A' + col + 1, row + 1);
         }
+    }
 
-        EasyBot->searching = false;
-    } else {
-        // Ship is sunk, switch to searching mode
-        EasyBot->searching = true;
-
-        // Clear stored coordinates
+    // Clear irrelevant targets if alignment is detected
+    if (isAlignedHorizontally || isAlignedVertically) {
         for (int i = 0; i < 4; i++) {
-            memset(EasyBot->tohit[i], 0, sizeof(EasyBot->tohit[i]));
+            if (strlen(EasyBot->tohit[i]) > 0) {
+                int hitCol = EasyBot->tohit[i][0] - 'A';
+                int hitRow = atoi(EasyBot->tohit[i] + 1) - 1;
+
+                if ((isAlignedHorizontally && hitRow != row) ||
+                    (isAlignedVertically && hitCol != col)) {
+                    memset(EasyBot->tohit[i], 0, sizeof(EasyBot->tohit[i]));
+                }
+            }
         }
     }
+
+    EasyBot->searching = false; // Switch to targeting mode
 }
+
+
 
 
