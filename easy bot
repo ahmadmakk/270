@@ -1,1 +1,80 @@
-test 
+
+typedef struct {
+
+        Player* base;    
+
+        bool searching;                
+        bool last_move;              
+        char tohit[4][4];      
+         int sunk;
+        
+    } EasyBot
+char* generate_easy_bot_move(EasyBot* EasyBot, Grid PlayerGrid) {
+    static char move[20];
+    EasyBot->sunk = EasyBot->base->countSunk; // Fixing pointer usage
+
+    // First, check if we're searching
+    if (EasyBot->searching) {
+        char guess[4];
+        int col, row;
+        do {
+            col = rand() % GRID_SIZE;
+            row = rand() % GRID_SIZE;
+
+            guess[0] = 'A' + col;
+            sprintf(guess + 1, "%d", row + 1);
+        } while (PlayerGrid.display[row][col] != '~');
+
+        strcpy(move, guess);
+        return move;
+    } else {
+        // Check stored coordinates
+        for (int i = 0; i < 4; i++) {
+            if (strlen(EasyBot->tohit[i]) > 0) {
+                strcpy(move, EasyBot->tohit[i]);
+                // Clear this coordinate after using it
+                memset(EasyBot->tohit[i], 0, sizeof(EasyBot->tohit[i]));
+                return move;
+            }
+        }
+
+        // If no valid moves left, return to searching mode
+        EasyBot->searching = true;
+    }
+
+    return generate_easy_bot_move(EasyBot, PlayerGrid); // Recursively call to find a valid move
+}
+// used inside the fire function when we hit .
+void update_bot_when_hit(EasyBot* EasyBot, Grid PlayerGrid, char* move) {
+    // Check if a ship was sunk
+    if (EasyBot->sunk == EasyBot->base->countSunk) {
+        int col = move[0] - 'A';
+        int row = atoi(move + 1) - 1;
+
+        // Check adjacent tiles and add valid targets
+        if (row > 0 && PlayerGrid.display[row - 1][col] == '~') { // Above
+            sprintf(EasyBot->tohit[0], "%c%d", 'A' + col, row);
+        }
+        if (row < GRID_SIZE - 1 && PlayerGrid.display[row + 1][col] == '~') { // Below
+            sprintf(EasyBot->tohit[1], "%c%d", 'A' + col, row + 2);
+        }
+        if (col > 0 && PlayerGrid.display[row][col - 1] == '~') { // Left
+            sprintf(EasyBot->tohit[2], "%c%d", 'A' + col - 1, row + 1);
+        }
+        if (col < GRID_SIZE - 1 && PlayerGrid.display[row][col + 1] == '~') { // Right
+            sprintf(EasyBot->tohit[3], "%c%d", 'A' + col + 1, row + 1);
+        }
+
+        EasyBot->searching = false;
+    } else {
+        // Ship is sunk, switch to searching mode
+        EasyBot->searching = true;
+
+        // Clear stored coordinates
+        for (int i = 0; i < 4; i++) {
+            memset(EasyBot->tohit[i], 0, sizeof(EasyBot->tohit[i]));
+        }
+    }
+}
+
+
