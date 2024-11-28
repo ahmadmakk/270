@@ -507,10 +507,20 @@ bool fire(Player *attacker, Player *defender, int row, int column)
         defender->own.display[row][column] = '*'; // mark hit on the display grid
 ////
 ////
+////
+////
+////
+////
+////
         if(difficulty==0){
            check_around_hit_Easy((EasyBot*)attacker, defender->own.display, row, column);
 
         }
+////
+////
+////
+////
+////
 ////
 ////
         for (int i = 0; i < 4; i++)
@@ -754,7 +764,37 @@ typedef struct
 
 } MediumBot;
 
-
+////
+////
+////
+////
+////
+////
+////////
+////
+////
+////
+////
+////
+////////
+////
+////
+////
+////
+////
+////////
+////
+////
+////
+////
+////
+////////
+////
+////
+////
+////
+////
+////
 typedef struct {
 
         Player* base;    
@@ -870,9 +910,21 @@ void generate_easy_bot_move(EasyBot* EasyBot, Grid PlayerGrid, Player* player) {
 
 
 
+////
+////
+////
+////
+////
+////
+////
 
-
-
+////
+////
+////
+////
+////
+////
+////
 //
 //
 //
