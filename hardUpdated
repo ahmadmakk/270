@@ -1,3 +1,18 @@
+typedef struct {
+    Player base;                 
+    int probabilityGrid[10][GRID_SIZE]; 
+    int consecutiveMisses;       
+    // tracks consecutive misses to adapt strategies
+    int lastHit[2];   // to store the coordinates of the last successful hit
+    bool isHunting;   // bot searching for targets or targeting a known ship
+    int huntStack[100][2];       //storing potential ship coordinates for hunting
+    int huntStackSize;     // number of entries in the hunt stack
+    int currentOrientation;      // 0: Unknown, 1: Horizontal, 2: Vertical (orientation of ship being targeted)
+    int successfulHits;    // tracks the number of successful hits
+} HardBot;
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
