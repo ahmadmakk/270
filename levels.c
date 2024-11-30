@@ -68,7 +68,7 @@ typedef struct
 typedef struct
 {
     MediumBot base;
-    int weightGrid[GRID_SIZE][GRID_SIZE];
+    int weightGrid[10][10];
     int smokedCoord[4][2];
     int smokeUsed;
 
@@ -118,28 +118,25 @@ int letterToNumber(char letter)
 // returns 0 if the position if the placement can't occur
 
 // we can add print statements to inform the player of failed positions
-int check(char position[], Player *player, int cells, char ship)
+int check(char position[7], Player *player, int cells, char ship)
 {
 
     //  Convert letter of colomn to index
     int column = letterToNumber(position[0]);
-
+    char direction;
     // here we just decremt 1 from the row to make it aligned with 0 indexing
     int row;
-    if (position[1] == '1' && position[2] == '0')
-    {            // Checking for "10"
-        row = 9; // Since the grid is zero-indexed, row 10 becomes 9
+   if (position[1] == '1' && position[2] == '0') { // Specifically handle "10"
+    row = 9; 
+    direction = position[4];
+     } else if (position[1] >= '1' && position[1] <= '9' && (position[2] == ',' || position[2] == 0)) {
+    row = position[1] - '1';
+    direction = position[3];
+    } else {
+    printf("Invalid row number!\n");
+    return 0;
     }
-    else if (position[1] == '1' && position[2] != 0 && position[2] != ',')
-        row = 20;
-    else
-    {
-        row = position[1] - '1'; // For single-digit rows
-    }
-
-    // we ignore position[2] since it has a ,
-    //  store the direction in a char
-    char direction = position[3];
+    
 
     // Check if row and column are within bounds so between 0 and 10
     if (!validateCoordinates(row, column))
@@ -156,7 +153,7 @@ int check(char position[], Player *player, int cells, char ship)
         // Check if placing horizontally would go out of bounds
         if (column + cells > 10)
         {
-            printf("Position provided out of the grid!\n");
+            printf("Position provided out of the grid! \n");
             return 0; // unvalid position
         }
 
@@ -181,7 +178,7 @@ int check(char position[], Player *player, int cells, char ship)
     {
         if (row + cells > 10)
         {
-            printf("Position provided out of the grid!\n");
+            printf("Position provided out of the grid! \n");
             return 0;
         }
         for (int i = 0; i < cells; i++)
@@ -229,7 +226,7 @@ int isShipSunk(Ship ship)
 
 bool Radar(Player *attacker, Player *opponent, int topLeftRow, int topLeftCol)
 {
-    bool hit = false;
+
     // Disable Torpedo and Artillery abilities
     attacker->Torpedo = false;
     attacker->Artillery = false;
@@ -237,7 +234,7 @@ bool Radar(Player *attacker, Player *opponent, int topLeftRow, int topLeftCol)
     // Check if there are any radar scans left
     if (attacker->radarUses <= 0)
     {
-        printf("No radar scans left. Your turn is skipped.\n");
+        printf("No radar scans left! You lose your turn.\n");
         return false;
     }
 
@@ -250,23 +247,25 @@ bool Radar(Player *attacker, Player *opponent, int topLeftRow, int topLeftCol)
 
     // Check the 2x2 area for any ships
     bool shipsFound = false;
-    for (int i = 0; i < 2; ++i)
+
+    for (int i = topLeftRow; i < 2 + topLeftRow ; i++)
     {
-        for (int j = 0; j < 2; ++j)
+        for (int j = topLeftCol; j < 2 + topLeftCol; j++)
         {
             // Skip cells covered by smoke screens
-            if (opponent->smoked[topLeftRow + i][topLeftCol + j])
+            if (opponent->smoked[i][j])
             {
                 continue;
             }
 
-            char currentCell = opponent->own.hide[topLeftRow + i][topLeftCol + j];
+            char currentCell = opponent->own.hide[i][j];
             if (currentCell == 'c' || currentCell == 'b' || currentCell == 'd' || currentCell == 's')
             {
                 shipsFound = true;
                 break; // Stop checking once a ship is found
             }
         }
+
         if (shipsFound)
             break;
     }
@@ -275,7 +274,6 @@ bool Radar(Player *attacker, Player *opponent, int topLeftRow, int topLeftCol)
     if (shipsFound)
     {
         printf("Enemy ships found in the area!\n");
-        hit = true;
     }
     else
     {
@@ -285,10 +283,12 @@ bool Radar(Player *attacker, Player *opponent, int topLeftRow, int topLeftCol)
     // Decrement radar use count
     attacker->radarUses--;
 
-    return hit;
+
+    return shipsFound;
 }
 void Smoke(Player *attacker, int topLeftRow, int topLeftCol)
 {
+   
     // Disable artillery when using a smoke screen
     attacker->Artillery = false;
     attacker->Torpedo = false;
@@ -296,7 +296,7 @@ void Smoke(Player *attacker, int topLeftRow, int topLeftCol)
     // Validate if the 2x2 area is within grid bounds
     if (!validateCoordinates(topLeftRow + 1, topLeftCol + 1))
     {
-        printf("Invalid smoke screen area! You lose your turn.\n");
+        printf("Invalid smoke screen area! You lose your turn and 1 smoke use.\n");
         return;
     }
 
@@ -316,13 +316,14 @@ void Smoke(Player *attacker, int topLeftRow, int topLeftCol)
         }
     }
 
-    // Decrement smoke screen count after successful placement
-    attacker->smokeUses--;
 
     // Clear screen for next player's turn (optional, mainly for console-based games)
     // system("cls");
 
     printf("Smoke screen placed successfully!\n");
+
+     // Decrement smoke screen count after successful placement
+    attacker->smokeUses--;
 }
 
 bool artilleryAttack(Player *attacker, Player *opponent, int topLeftRow, int topLeftCol)
@@ -355,7 +356,10 @@ bool artilleryAttack(Player *attacker, Player *opponent, int topLeftRow, int top
 
             if (cellInHide != '~')
             { // It's a ship
+             
+             if(opponent->own.display[row][col] == '~'){
                 opponent->own.display[row][col] = '*';
+             }
                 hit = true; // Mark that a hit occurred
                 for (int i = 0; i < 4; i++)
                 {
@@ -427,7 +431,10 @@ bool torpedoStrike(Player *attacker, Player *opponent, int choice, int line)
 
             { // Ship detected and not hit before
                 hit = true;
+
+                if(opponent->own.display[line][j] == '~'){
                 opponent->own.display[line][j] = '*';
+                }
 
                 // Increment the hit count for the specific ship
                 for (int i = 0; i < 4; i++)
@@ -469,7 +476,10 @@ bool torpedoStrike(Player *attacker, Player *opponent, int choice, int line)
             if (cell != '~')
             { // Ship detected and not hit before
                 hit = true;
+
+                 if(opponent->own.display[j][line] == '~'){
                 opponent->own.display[j][line] = '*';
+                }
 
                 // Increment the hit count for the specific ship
                 for (int i = 0; i < 4; i++)
@@ -577,17 +587,14 @@ void check_around_hit(EasyBot *easyBot, char PlayerGrid[10][10], int row, int co
     // vertical orientation
     if (easyBot->orientation == 1)
     {
-        if (validateCoordinates(row + 1, col) && PlayerGrid[row + 1][col] == '*')
+       
             addto_hit_stack(easyBot, row - 1, col, PlayerGrid);
-        else
             addto_hit_stack(easyBot, row + 1, col, PlayerGrid);
     }
     // horizontal orienatation
     if (easyBot->orientation == 2)
     {
-        if (validateCoordinates(row, col + 1) && PlayerGrid[row][col + 1] == '*')
             addto_hit_stack(easyBot, row, col - 1, PlayerGrid);
-        else
             addto_hit_stack(easyBot, row, col + 1, PlayerGrid);
     }
 }
@@ -603,7 +610,7 @@ bool fire(Player *attacker, Player *defender, int row, int column)
 
     if (cellinDisplay != '~')
     {
-        printf("The cell is already targeted!");
+        printf("The cell is already targeted! \n");
     }
 
     else if (cellinHide != '~')
@@ -650,9 +657,61 @@ bool fire(Player *attacker, Player *defender, int row, int column)
     return hit;
 }
 
+void convertSunkenToLetter(Player* player)
+{
+    for (int i = 0; i < GRID_SIZE; i++)
+    {
+        for (int j = 0; j < GRID_SIZE; j++)
+        {
+
+            if (player->own.display[i][j] == '*')
+            {
+                char shipInitial = player->own.hide[i][j];
+                char direction = 'v';
+                int shipNum;
+                if (player->own.display[i][j + 1] == '*' && player->own.hide[i][j + 1]==shipInitial)
+                    direction = 'h';
+
+                if (shipInitial == 'c')
+                    shipNum = 0;
+                if (shipInitial == 'b')
+                    shipNum = 1;
+                if (shipInitial == 'd')
+                    shipNum = 2;
+                if (shipInitial == 's')
+                    shipNum = 3;
+
+                if (isShipSunk(player->ships[shipNum]))
+                {
+                    if (direction == 'h')
+                    {
+                        for (int k = j; k < player->ships[shipNum].cells + j; k++)
+                        {
+
+                            player->own.display[i][k] = shipInitial;
+                        }
+                    }
+
+                    else
+                    {
+                        for (int k = i; k < player->ships[shipNum].cells + i; k++)
+                        {
+
+                            player->own.display[k][j] = shipInitial;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 bool takeTurn(Player *attacker, Player *defender, char move[9], int row, int col)
 {
     bool hit = false;
+
+    int sinkshipprev= attacker->countSunk;
 
     // we examine all the movements possibilities
     if (!strcmp("Fire", move))
@@ -675,7 +734,7 @@ bool takeTurn(Player *attacker, Player *defender, char move[9], int row, int col
         printf("Artillery Attack selected!\n");
         hit = artilleryAttack(attacker, defender, row, col);
     }
-    else if (!strcmp("Smoke", move))
+    else if (!strcmp("Torpedo", move))
     {
         printf("Torpedo selected!\n");
         hit = torpedoStrike(attacker, defender, row, col);
@@ -685,11 +744,15 @@ bool takeTurn(Player *attacker, Player *defender, char move[9], int row, int col
         printf("Invalid move!\n");
     }
 
+     if(sinkshipprev<attacker->countSunk){
+        convertSunkenToLetter(defender);
+     }
+
     // Display updated opponent(defender) grid after the turn
     printf("Updated grid for %s:\n", defender->name);
     printGrid(defender->own.display);
 
-    sleep(5);
+    //sleep(5);
     // system("cls");
     return hit;
 }
@@ -701,23 +764,26 @@ void positionShips(Player *player, Ship *shipss)
        e.g: A1,horizantal
        we take the size 5 because we can take only the first letter from the direction 'h' or 'v'
        */
-    char position[5];
+    char position[7];
 
     // first we print their grid (which's initially all water)
     printGrid(player->own.display);
 
+    int i = 0;
     // a for loop to pass over all the ships in the ships array
-    for (int i = 0; i < 4; i++)
+    for (i; i < 4; i++)
     {
         // asking the player for the position and storing it
         printf("Please enter the position of the %s of size %d\n", shipss[i].name, shipss[i].cells);
-        scanf("%s", &position);
+        scanf("%5s", position);
 
         // checking if the position is valid with our check function
         if (!check(position, player, shipss[i].cells, shipss[i].name[0]))
         {
+      
             //  printf("Invalid coordinates\n"); // should be informed in the function check
-            i--; // decremnting i so we pass over the ship again and the player get to deploy it correclty
+            i--; // decremnting i so we pass over the ship again and the player get to deploy it correct
+            continue;
         }
 
         // after each placement the player is shown their grid
@@ -725,16 +791,7 @@ void positionShips(Player *player, Ship *shipss)
     }
 }
 
-// game end logic
-int isGameOver(Player *player)
-{
-    return player->countSunk == 4;
-}
-// display the winner mssg
-void displayWinner(Player *winner)
-{
-    printf("congratulations! %s YOU WON!", winner->name);
-}
+
 
 void placeBotShipsRandomly(Player *player, Ship ships[])
 {
@@ -852,6 +909,7 @@ void generate_easy_bot_move(EasyBot *easyBot, char PlayerGrid[10][10], int *row,
             *col = rand() % GRID_SIZE;
             *row = rand() % GRID_SIZE;
         } while (PlayerGrid[*row][*col] != '~'); // Only target unexplored positions
+
     }
     else
     {
@@ -890,77 +948,57 @@ void generate_easy_bot_move(EasyBot *easyBot, char PlayerGrid[10][10], int *row,
 bool should_use_radar(MediumBot *mediumBot, char PlayerGrid[10][10])
 {
 
-    // count how many unkown cells (~) there are
-    int unknown_cells = 0;
-    for (int row = 0; row < 10; row++)
+    if ( mediumBot->base.base.radarUses > 0 && mediumBot->ConsecutiveMisses >= 3)
     {
-        for (int col = 0; col < 10; col++)
-        {
-            if (PlayerGrid[row][col] == '~')
-            {
-                unknown_cells++;
-            }
-        }
+        return 1; // struggling to find targets -> use radar
     }
 
-    if (unknown_cells < 50 && mediumBot->ConsecutiveMisses > 3)
-    {
-        return 1; // Mid-game and struggling to find targets -> use radar
-    }
-    else if (unknown_cells < 25)
-    {
-        return 1; // Late game, prioritize finding remaining ships
-    }
-
-    return 0; // Avoid radar in the early game (if unkown cells are many  >50)
+    return 0; 
 }
 
 // used for radar and artillery
 void find_best_2by2_area(char PlayerGrid[10][10], int *row, int *col)
 {
-
     int max_water = -1;
-    int best_row = -1;
-    int best_col = -1;
 
-    for (int r = 0; r < 9; r++)
-    {
-        for (int c = 0; c < 9; c++)
-        {
+// the following array can fit 25 grids stored with their top_left coordinate
+    int potential_areas[25][2]; 
+    int potential_count = 0;
+
+
+    for (int r = 0; r < 9; r++) {
+        for (int c = 0; c < 9; c++) {
 
             int water = 0;
 
-            for (int r1 = r; r1 < r + 2; r1++)
-            {
-                for (int c1 = c; c1 < c + 2; c1++)
-                {
-
-                    if (PlayerGrid[r1][c1] == '~')
-                    {
+            for (int r1 = r; r1 < r + 2; r1++) {
+                for (int c1 = c; c1 < c + 2; c1++) {
+                    if (PlayerGrid[r1][c1] == '~') {
                         water += 1;
                     }
                 }
-
-                if (water > max_water)
-                {
-                    max_water = water;
-                    best_col = c;
-                    best_row = r;
-                }
-
-                if (max_water == 4)
-                    break; // we can't reach more than 4 per 2x2 grid
             }
-            if (max_water == 4)
-                break;
-        }
 
-        if (max_water == 4)
-            break;
+
+            if (water > max_water) {
+                max_water = water;
+                potential_count = 0;
+                potential_areas[potential_count][0] = r;
+                potential_areas[potential_count][1] = c;
+                potential_count++;
+
+            } else if (water == max_water) {
+                potential_areas[potential_count][0] = r;
+                potential_areas[potential_count][1] = c;
+                potential_count++;
+            }
+        }
     }
 
-    *row = best_row;
-    *col = best_col;
+    srand(time(NULL));  
+    int random_index = rand() % potential_count;
+    *row = potential_areas[random_index][0];
+    *col = potential_areas[random_index][1];
 }
 
 void generate_medium_bot_move(MediumBot *mediumBot, char PlayerGrid[10][10], char move[9], int *row, int *col)
@@ -991,7 +1029,7 @@ void generate_medium_bot_move(MediumBot *mediumBot, char PlayerGrid[10][10], cha
 
     // else if we are haunting for places to target
     // and we can still use radar and it is a good choice to make use of it in this turn
-    else if (mediumBot->base.base.radarUses > 0 && should_use_radar(mediumBot, PlayerGrid))
+    else if (should_use_radar(mediumBot, PlayerGrid))
     {
 
         // finds the best coordiates to tagret by radar and stores it in radar target
@@ -1000,6 +1038,7 @@ void generate_medium_bot_move(MediumBot *mediumBot, char PlayerGrid[10][10], cha
         //  move  = Radar + radar target
         strcpy(move, "Radar");
         mediumBot->base.last_move = 2;
+        mediumBot->ConsecutiveMisses = 0;
     }
     // if we're haunting but it's not a good choice to use radar
     else
@@ -1026,30 +1065,32 @@ void update_bot_state_after_hit(EasyBot *easyBot, int row, int col, char PlayerG
     easyBot->haunting = false;
 
     // if last move was fire we check adjacent cells depending on orientation
-    if (easyBot->last_move = 1)
+    if (easyBot->last_move == 1)
     {
         check_around_hit(easyBot, PlayerGrid, row, col);
     }
     // if last move was radar we check the 2X2 grid of which hit_coord is the top left corner
 
-    else if (easyBot->last_move = 2)
+    else if (easyBot->last_move == 2)
     {
 
-        int possibilities[4][2] = {{row, col}, {row + 1, col}, {row, col + 1}, {row + 1, col + 1}};
+        int possibilities[10][2] = {{row, col}, {row + 1, col}, {row, col + 1}, {row + 1, col + 1}};
 
         for (int i = 0; i < 4; i++)
         {
-            addto_hit_stack(easyBot, row, col, PlayerGrid);
+            int r = possibilities[i][0];
+            int c = possibilities[i][1];
+            addto_hit_stack(easyBot, r, c, PlayerGrid);
         }
     }
 
     // if last move was artilery we check eaxh cell in the 2X2 grid of which hit_coord is the top left corner
     // if each cell was a hit or not
 
-    else if (easyBot->last_move = 3)
+    else if (easyBot->last_move == 3)
     {
 
-        int possibilities[4][2] = {{row, col}, {row + 1, col}, {row, col + 1}, {row + 1, col + 1}};
+        int possibilities[10][2] = {{row, col}, {row + 1, col}, {row, col + 1}, {row + 1, col + 1}};
 
         for (int i = 0; i < 4; i++)
         {
@@ -1064,9 +1105,10 @@ void update_bot_state_after_hit(EasyBot *easyBot, int row, int col, char PlayerG
         }
     }
 
-    else if (easyBot->last_move = 4)
+// last move was torpedo
+    else if (easyBot->last_move == 4)
     {
-        int possibilities[10][2];
+        int possibilities[20][2];
         for (int i = 0; i < 10; i++)
         {
             if (row = 1)
@@ -1107,18 +1149,21 @@ void calculateWeight(int weightGrid[GRID_SIZE][GRID_SIZE], Player human)
     {
         for (int j = 0; j < GRID_SIZE; j++)
         {
+
             if (human.own.display[i][j] == '~')
             {
+
                 for (int k = 0; k < 4; k++)
                 {
                     Ship ship = human.ships[k];
+
                     if (!isShipSunk(ship))
                     {
                         // check horizontal placement
                         if (j + ship.cells <= GRID_SIZE)
                         {
                             bool isMiss = false;
-                            for (int r = 0; r < j + ship.cells; r++)
+                            for (int r = j; r < j + ship.cells; r++)
                                 if (human.own.display[i][r] != '~')
                                     isMiss = true;
                             if (!isMiss)
@@ -1128,7 +1173,7 @@ void calculateWeight(int weightGrid[GRID_SIZE][GRID_SIZE], Player human)
                         if (i + ship.cells <= GRID_SIZE)
                         {
                             bool isMiss = false;
-                            for (int r = 0; r < i + ship.cells; r++)
+                            for (int r = i; r < i + ship.cells; r++)
                                 if (human.own.display[r][j] != '~')
                                     isMiss = true;
                             if (!isMiss)
@@ -1137,13 +1182,18 @@ void calculateWeight(int weightGrid[GRID_SIZE][GRID_SIZE], Player human)
                     }
                 }
             }
+
         }
     }
 }
 
+
 void selectTarget(int *row, int *col, int weightGrid[GRID_SIZE][GRID_SIZE])
 {
     int maxWeigth = -1;
+
+    int potential_cells[30][2]; 
+    int potential_count = 0;
 
     for (int i = 0; i < GRID_SIZE; i++)
     {
@@ -1152,29 +1202,61 @@ void selectTarget(int *row, int *col, int weightGrid[GRID_SIZE][GRID_SIZE])
             if (weightGrid[i][j] > maxWeigth)
             {
                 maxWeigth = weightGrid[i][j];
-                *row = i;
-                *col = j;
+                potential_count = 0;
+                potential_cells[potential_count][0] = i;
+                potential_cells[potential_count][1] = j;
+                potential_count++;
             }
+            else if ( weightGrid[i][j] == maxWeigth) {
+                potential_cells[potential_count][0] = i;
+                potential_cells[potential_count][1] = j;
+                potential_count++;
+            }
+
+
         }
     }
+
+    srand(time(NULL));  
+    int random_index = rand() % potential_count;
+    *row = potential_cells[random_index][0];
+    *col = potential_cells[random_index][1];
 }
 
 void selectTargetINbounds(int *row, int *col, int weightGrid[GRID_SIZE][GRID_SIZE])
 {
     int maxWeigth = -1;
 
-    for (int i = 1; i < GRID_SIZE - 1; i++)
+    int potential_cells[30][2]; 
+    int potential_count = 0;
+
+    for (int i = 1; i < GRID_SIZE-1; i++)
     {
-        for (int j = 1; j < GRID_SIZE - 1; j++)
+        for (int j = 1; j < GRID_SIZE-1; j++)
         {
             if (weightGrid[i][j] > maxWeigth)
             {
                 maxWeigth = weightGrid[i][j];
-                *row = i;
-                *col = j;
+                potential_count = 0;
+                potential_cells[potential_count][0] = i;
+                potential_cells[potential_count][1] = j;
+                potential_count++;
             }
+            else if ( weightGrid[i][j] == maxWeigth) {
+                potential_cells[potential_count][0] = i;
+                potential_cells[potential_count][1] = j;
+                potential_count++;
+            }
+
+
         }
     }
+
+    srand(time(NULL));  
+    int random_index = rand() % potential_count;
+    *row = potential_cells[random_index][0];
+    *col = potential_cells[random_index][1];
+
 }
 
 void find_best_2by2_area_hard(HardBot hardBot, char PlayerGrid[GRID_SIZE][GRID_SIZE], int *row, int *col)
@@ -1182,9 +1264,9 @@ void find_best_2by2_area_hard(HardBot hardBot, char PlayerGrid[GRID_SIZE][GRID_S
 
     int r;
     int c;
-
+     
     selectTargetINbounds(&r, &c, hardBot.weightGrid);
-
+    
     int sumWeightGrid1 = hardBot.weightGrid[r][c] + hardBot.weightGrid[r + 1][c] + hardBot.weightGrid[r][c + 1] + hardBot.weightGrid[r + 1][c + 1];
     int sumWeightGrid2 = hardBot.weightGrid[r][c] + hardBot.weightGrid[r - 1][c] + hardBot.weightGrid[r][c - 1] + hardBot.weightGrid[r - 1][c - 1];
     if (sumWeightGrid1 > sumWeightGrid2)
@@ -1256,9 +1338,9 @@ bool foundInSmokeCoord(int smokedCoord[4][2], int row, int col)
 void coordToSmoke(HardBot *hardBot, int *row, int *col)
 {
 
-    for (int i = 0; i < GRID_SIZE; i++)
+    for (int i = 0; i < GRID_SIZE-1; i++)
     {
-        for (int j = 0; j < GRID_SIZE; j++)
+        for (int j = 0; j < GRID_SIZE-1; j++)
         {
             if (hardBot->base.base.base.own.hide[i][j] != '~' && hardBot->base.base.base.own.display[i][j] == '~' && !foundInSmokeCoord(hardBot->smokedCoord, i, j))
             {
@@ -1315,7 +1397,7 @@ void generate_hard_bot_move(HardBot *hardBot, char PlayerGrid[10][10], char move
 
     // else if we are haunting for places to target
     // and we can still use radar and it is a good choice to make use of it in this turn
-    else if (hardBot->base.base.base.radarUses > 0 && should_use_radar(&(hardBot->base), PlayerGrid))
+    else if ( should_use_radar(&(hardBot->base), PlayerGrid))
     {
 
         // finds the best coordiates to tagret by radar and stores it in radar target
@@ -1323,6 +1405,7 @@ void generate_hard_bot_move(HardBot *hardBot, char PlayerGrid[10][10], char move
         // we decrement the number of radar sweeps we can still use
         strcpy(move, "Radar");
         hardBot->base.base.last_move = 2;
+         hardBot->base.ConsecutiveMisses = 0;
     }
     // if we're haunting but it's not a good choice to use radar
     else
@@ -1334,51 +1417,19 @@ void generate_hard_bot_move(HardBot *hardBot, char PlayerGrid[10][10], char move
     }
 }
 
-void convertSunkenToLetter(Player player)
-{
-    for (int i = 0; i < GRID_SIZE; i++)
-    {
-        for (int j = 0; j < GRID_SIZE; j++)
-        {
-            if (player.own.display[i][j] == '*')
-            {
-                char shipInitial = player.own.hide[i][j];
-                char direction = 'v';
-                int shipNum;
-                if (player.own.display[i][j + 1] == '*')
-                    direction = 'h';
 
-                if (shipInitial == 'c')
-                    shipNum = 0;
-                if (shipInitial == 'b')
-                    shipNum = 1;
-                if (shipInitial == 'd')
-                    shipNum = 2;
-                if (shipInitial == 's')
-                    shipNum = 3;
+void printIntGrid(int grid[10][10]) {
 
-                if (isShipSunk(player.ships[shipNum]))
-                {
-                    if (direction == 'h')
-                    {
-                        for (int k = j; k < player.ships[shipNum].cells + j; k++)
-                        {
+printf("  A B C D E F G H I J \n");
 
-                            player.own.display[i][k] == shipInitial;
-                        }
-                    }
+    for (int row = 0; row < 10; row++) {
+        printf("%d ",row+1);
+        for (int col = 0; col < 10; col++) {
 
-                    else
-                    {
-                        for (int k = i; k < player.ships[shipNum].cells + i; k++)
-                        {
-
-                            player.own.display[k][j] == shipInitial;
-                        }
-                    }
-                }
-            }
+            printf("%d ", grid[row][col]);
         }
+
+        printf("\n");
     }
 }
 
@@ -1420,19 +1471,52 @@ int main()
         easy.orientation = 0;
         easy.hit_stack_size = 0;
         easy.last_move = 1;
+        easy.troubleCells[0][0] = 0;
+        easy.troubleCells[0][1] = 0;
+        easy.troubleCells[1][0] = 0;
+        easy.troubleCells[1][1] = 0;
+
+
     }
     else if (difficulty == 1)
     {
         bot = (Player *)&(medium.base);
-        medium.ConsecutiveMisses = 0;
+
+        
+        medium.base.haunting = true;
         medium.base.orientation = 0;
         medium.base.hit_stack_size = 0;
-        medium.base.haunting = 1;
+        medium.base.last_move = 1;
+        medium.base.troubleCells[0][0] = 0;
+        medium.base.troubleCells[0][1] = 0;
+        medium.base.troubleCells[1][0] = 0;
+        medium.base.troubleCells[1][1] = 0;
+
+        medium.ConsecutiveMisses = 0;
+       
+    
     }
     else
     {
+
+        hard.base.base.haunting = true;
+        hard.base.base.orientation = 0;
+        hard.base.base.hit_stack_size = 0;
+        hard.base.base.last_move = 1;
+        hard.base.base.troubleCells[0][0] = 0;
+        hard.base.base.troubleCells[0][1] = 0;
+        hard.base.base.troubleCells[1][0] = 0;
+        hard.base.base.troubleCells[1][1] = 0;
+
+        hard.base.ConsecutiveMisses = 0;
+
         bot = (Player *)&(hard.base.base);
         hard.smokeUsed = 0;
+        for(int i=0; i<4; i++){
+           hard.smokedCoord[i][0]=0;
+           hard.smokedCoord[i][1]=0;
+        }
+
     }
 
     bot->name = "Bot";
@@ -1458,10 +1542,15 @@ int main()
         {
             player.own.display[i][j] = '~';
             player.own.hide[i][j] = '~';
+
             bot->own.hide[i][j] = '~';
             bot->own.display[i][j] = '~';
-            if (difficulty == 2)
-                hard.weightGrid[i][j] = 0;
+
+           player.smoked[i][j] = false;
+           bot->smoked[i][j] = false;
+
+           if (difficulty == 2)
+            hard.weightGrid[i][j] = 0;
         }
     }
 
@@ -1531,10 +1620,8 @@ int main()
                     break;
                 }
             }
-            int shipSunkPrev = player.countSunk;
+        
             hit = takeTurn(&player, bot, move, row, col); // player attacks bot
-            if (shipSunkPrev < player.countSunk)
-                convertSunkenToLetter(*bot);
         }
         else
         {
@@ -1553,26 +1640,28 @@ int main()
             {
 
                 generate_medium_bot_move(&medium, player.own.display, move, &row, &col);
-                printf("bot made a move at %c%d\n", 'A' + col, row + 1);
+                
             }
 
             else
             {
                 generate_hard_bot_move(&hard, player.own.display, move, &row, &col);
+                printf("bot made a move %s at %c%d\n", move, 'A' + col, row + 1);
             }
 
             hit = takeTurn(bot, &player, move, row, col);
 
             if (difficulty == 0)
             {
+                
                 if (hit)
                 {
                     update_bot_state_after_hit(&easy, row, col, player.own.display);
                     easy.haunting = false;
                     if (shipsunkprev < bot->countSunk)
                     {
-                        convertSunkenToLetter(player);
-                        medium.base.orientation = 0;
+                        //instead of easy there was medium.base becauseit was copied from medium
+                        easy.orientation = 0;
                         easy.hit_stack_size = 0;
                         if (player.own.display[easy.troubleCells[0][0]][easy.troubleCells[0][1]] == '*')
                         {
@@ -1584,6 +1673,7 @@ int main()
                         }
                     }
                 }
+                printf("orientation %d \n", easy.orientation);
             }
             else if (difficulty == 1)
             {
@@ -1594,7 +1684,6 @@ int main()
 
                     if (shipsunkprev < bot->countSunk)
                     {
-                        convertSunkenToLetter(player);
                         medium.base.orientation = 0;
                         medium.base.hit_stack_size = 0;
 
@@ -1615,18 +1704,24 @@ int main()
             }
             else
             {
+               
                 if (!strcmp(move, "Fire") || !strcmp(move, "Artillery") || !strcmp(move, "Torpedo"))
                 {
+                    for (int i = 0; i < 10; i++) {
+                     for (int j = 0; j < 10; j++) {
+                           hard.weightGrid[i][j] = 0; 
+                             }
+                        }
                     calculateWeight(hard.weightGrid, player);
+                     printIntGrid(hard.weightGrid);
                 }
                 if (hit)
                 {
                     hard.base.ConsecutiveMisses = 0;
                     update_bot_state_after_hit(&(hard.base.base), row, col, player.own.display);
-
+                
                     if (shipsunkprev < bot->countSunk)
                     {
-                        convertSunkenToLetter(player);
                         hard.base.base.orientation = 0;
                         hard.base.base.hit_stack_size = 0;
 
@@ -1644,9 +1739,10 @@ int main()
                 {
                     hard.base.ConsecutiveMisses++;
                 }
+                    printf("orientation : %d \n", hard.base.base.orientation);
             }
         }
-
+      
         // Check end condition (e.g., all ships sunk)
         // For simplicity, we'll assume that if a player has sunk 4 ships, they win
         if (player.countSunk == 4)
@@ -1672,3 +1768,7 @@ int main()
     scanf("%c", &exit);
     return 0;
 }
+
+
+
+
