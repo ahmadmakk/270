@@ -75,6 +75,20 @@ typedef struct
 
 } HardBot;
 
+void sleepp(int sec){
+    time_t start_time = time(NULL);
+    while (time(NULL) - start_time < sec) {
+        // Busy wait
+    }
+}
+
+
+void clearScreen()
+{
+  const char *CLEAR_SCREEN_ANSI = "\e[1;1H\e[2J";
+  write(STDOUT_FILENO, CLEAR_SCREEN_ANSI, 12);
+}
+
 // Check if the row and column are valid
 int validateCoordinates(int row, int column)
 {
@@ -105,6 +119,12 @@ void printGrid(char arr[10][10])
             }
         }
         printf("\n");
+    }
+}
+
+void cleanBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) {
     }
 }
 
@@ -321,8 +341,8 @@ void Smoke(Player *attacker, int topLeftRow, int topLeftCol)
     }
 
     // Clear screen for next player's turn (optional, mainly for console-based games)
-    // system("cls");
-
+    //system("cls");
+    
     printf("Smoke screen placed successfully!\n");
 
     // Decrement smoke screen count after successful placement
@@ -758,8 +778,8 @@ bool takeTurn(Player *attacker, Player *defender, char move[9], int row, int col
     printf("Updated grid for %s:\n", defender->name);
     printGrid(defender->own.display);
 
-    // sleep(5);
-    //  system("cls");
+    sleepp(3);
+//system("cls");
     return hit;
 }
 
@@ -887,14 +907,15 @@ void extract_row_col(char coord[3], int *row, int *col)
 
     if (coord[1] == '1' && coord[2] == '0')
     {             // Checking for "10"
-        *row = 9; // Since the grid is zero-indexed, row 10 becomes 9
+        *row =9; // Since the grid is zero-indexed, row 10 becomes 9
     }
-    else if (coord[1] == '1' && coord[2] != 0)
+    else if (coord[1] >='1' && coord[1]<='9' && coord[2] != 0)
         *row = 20;
     else
     {
         *row = coord[1] - '1'; // For single-digit rows
     }
+
 }
 
 void generate_easy_bot_move(EasyBot *easyBot, char PlayerGrid[10][10], int *row, int *col)
@@ -957,6 +978,16 @@ bool should_use_radar(MediumBot *mediumBot, char PlayerGrid[10][10])
     }
 
     return 0;
+}
+bool isCoordFoundInArray(int Coord[5][2], int row, int col)
+{
+    bool isFound = false;
+    for (int i = 0; i < 5; i++)
+    {
+        if (Coord[i][0] == row && Coord[i][1] == col)
+            isFound = true;
+    }
+    return isFound;
 }
 
 // used for radar and artillery
@@ -1359,17 +1390,6 @@ void find_best_torpedo_rc(HardBot hardBot, char PlayerGrid[GRID_SIZE][GRID_SIZE]
     }
 }
 
-bool isCoordFoundInArray(int Coord[5][2], int row, int col)
-{
-    bool isFound = false;
-    for (int i = 0; i < 5; i++)
-    {
-        if (Coord[i][0] == row && Coord[i][1] == col)
-            isFound = true;
-    }
-    return isFound;
-}
-
 void coordToSmoke(HardBot *hardBot, int *row, int *col)
 {
 
@@ -1544,9 +1564,11 @@ int main()
 
     printf("%s welcome to World War III \"Battleship!\"\n", player.name);
 
+do{
     // asking players to select the bot modes
     printf("Please select difficulty level of the bot: insert 0 for easy and 1 for medium and 2 for hard: ");
     scanf("%d", &difficulty);
+}while(difficulty!=0 && difficulty!=1 && difficulty!=2);
 
     Player *bot;
     MediumBot medium;
@@ -1649,10 +1671,10 @@ int main()
 
     printf("%s start filling your grid\n", player.name);
     positionShips(&player, shipss);
-    //  system("cls");
 
-    printf("The bot is palcing its ships...\n");
-    // sleep(5);
+   
+     printf("The bot is palcing its ships...\n");
+    sleepp(3);
 
     placeBotShipsRandomly(bot, shipss);
 
@@ -1671,13 +1693,21 @@ int main()
 
         if (player.isTurn)
         {
-
             // Display updated opponent(defender) grid before the turn
             printf("Updated grid for bot\n");
             printGrid(bot->own.display);
+
             // commanding the attacker to choose their move
             printf("%s, choose your move Fire/Radar/Smoke/Artillery/Torpedo: ", player.name);
             scanf("%s", move);
+
+            if (strcmp(move, "Fire") && strcmp(move, "Radar") && strcmp(move, "Smoke") && strcmp(move, "Artillery") && strcmp(move, "Torpedo")) {
+            printf("Invalid move! you loose your turn.\n");
+            cleanBuffer();
+            switchTurns(&player, bot);
+            continue;  // Skip this turn and ask again
+            }
+
 
             if (!strcmp(move, "Torpedo"))
             {
@@ -1707,10 +1737,12 @@ int main()
             {
                 scanf("%s", coord);
                 extract_row_col(coord, &row, &col);
+                
                 if (!validateCoordinates(row, col))
-                {
-                    printf("Invalid coordinates, you lost your turn!");
-                    break;
+                { 
+                    printf("Invalid coordinates, you lost your turn! \n");
+                    switchTurns(&player, bot);
+                    continue;
                 }
             }
 
@@ -1807,7 +1839,6 @@ int main()
                         }
                     }
                     calculateWeight(hard.weightGrid, player);
-                    printIntGrid(hard.weightGrid);
                 }
                 if (hit)
                 {
@@ -1846,7 +1877,7 @@ int main()
         }
         else if (bot->countSunk == 4)
         {
-            printf("%s", "bot wins!");
+            printf("%s", "bot wins!\n");
             printf("Winner's hidden ships\n");
             printGrid(bot->own.hide);
             gameOver = 1;
@@ -1857,7 +1888,7 @@ int main()
     }
 
     char exit;
-    printf("Press any key to exsit!");
+    printf("Press any key to exsit!\n");
     scanf("%c", &exit);
-    return 0;
+    //return 0;
 }
