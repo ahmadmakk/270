@@ -1728,7 +1728,12 @@ int main()
                 generate_hard_bot_move(&hard, player.own.display, move, &row, &col);
             }
             if (strcmp(move, "Smoke"))
-                printf("bot made a move %s at %c%d\n", move, 'A' + col, row + 1);
+            {
+                if (!strcmp(move, "Torpedo"))
+                    printf("bot used Torpedo, choice: %d, line: %d\n", row, col + 1);
+                else
+                    printf("bot made a move %s at %c%d\n", move, 'A' + col, row + 1);
+            }
 
             hit = takeTurn(bot, &player, move, row, col);
 
@@ -1844,6 +1849,6 @@ int main()
     char exit;
     printf("Press any key to exsit!\n");
     scanf("%c", &exit);
-    
+
     return 0;
 }
